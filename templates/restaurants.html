@@ -1,0 +1,35 @@
+<html>
+<head>
+    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='main.css')}}">
+
+</head>
+<body>
+
+        {% include "header.html" %}
+
+
+<h1> List of restaurants </h1>
+<!-- I'm trying to access the internal items of restaurants -->
+{% for i in results %}
+
+{{ i.MenuItem.name }}
+{% endfor %}
+
+
+{% for restaurant in allRestaurants %}
+</br>
+<section class="resturants">
+<h2> Restaurant name :</h2>
+<h2 class="restaurantinfo">{{ restaurant.name }}</h2>
+<h2 class="restaurantinfo">{{ restaurant.id }}</h2>
+</section>
+</br>
+</br>
+
+{% endfor %}
+
+
+
+</body>
+
+</html>

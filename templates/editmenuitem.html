@@ -1,0 +1,26 @@
+<html>
+    <body>
+<!-- with is exit once the block is executed -->
+            {% with message = get_flashed_messages()  %}
+
+            {% if messages %}
+
+            {% for message in messages %}
+            {{message}}
+            {% endfor %}
+            {% endif %}
+            {% endwith %}
+        
+        <h1>Edit item :</h1>
+        
+        <form action="{{url_for('editMenuItem', restaurant_id = restaurant_id, menu_id = menu_id)}}" method="POST">
+            
+
+            <p>Enter the new item name :  </p></br> 
+            <input type="text" name="newname" placeholder="{{item.name}}">
+            <input type="submit" value="Submit">
+
+        </form>
+        <a href= '{{url_for('Menu', restaurant_id= item.restaurant_id)}}'>Cancel</a>
+    </body>
+</html>
