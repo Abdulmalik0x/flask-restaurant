@@ -69,5 +69,5 @@ class MenuItem(Base):
 
 engine = create_engine('sqlite:///restaurantmenuwithusers.db')
 
-
+""" Instead of creating a schema automatically from the SQLAlchemy, as what's shown in the previous articles using Base.metadata.create_all(engine) """
 Base.metadata.create_all(engine)

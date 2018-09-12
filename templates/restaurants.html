@@ -1,37 +1,49 @@
 <html>
+
 <head>
-    <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='main.css')}}">
-	<title> All Restaurant </title>
+        <link rel="stylesheet" type="text/css" href="{{url_for('static', filename='css/main.css')}}">
+        <title> All Restaurant </title>
+        <style>
+                .alpha_2 {
+                        background: transparent url(../static/img/backgroundfood.jpg) no-repeat 0 0;
+                        background-size: 100%;
+                        min-width: 100%;
+                        min-height: 100%;
+                        position: fixed;
+                        filter: alpha(opacity=30);
+                        opacity: 0.3;
+                        z-index: -1;
+                }
+        </style>
 </head>
+
 <body>
-<h1> Adventurous Quest </h1>
+        <div class="alpha_2">
+
+        </div><!-- alpha_2 ends -->
+        <div class="alpha_wrapper">
+
+                {% include "header.html" %}
+
+                <h1> List of restaurants </h1>
+                <!-- I'm trying to access the internal items of restaurants -->
+                {% for i in allRestaurants %} {{ i.name }} {% endfor %} {% for restaurant in allRestaurants %}
+                </br>
+                <section class="restaurants">
+                        <h2> Restaurant name :</h2>
+                        <h2 class="restaurantinfo">{{ restaurant.name }}</h2>
+                        <h2 class="restaurantinfo">{{ restaurant.id }}</h2>
+                </section>
+                </br>
+                </br>
+
+                {% endfor %}
 
 
-        {% include "header.html" %}
+        </div><!-- alpha_wrapper ends -->
 
 
-<h1> List of restaurants </h1>
-<!-- I'm trying to access the internal items of restaurants -->
-{% for i in results %}
-
-{{ i.MenuItem.name }}
-{% endfor %}
-
-
-{% for restaurant in allRestaurants %}
-</br>
-<section class="resturants">
-<h2> Restaurant name :</h2>
-<h2 class="restaurantinfo">{{ restaurant.name }}</h2>
-<h2 class="restaurantinfo">{{ restaurant.id }}</h2>
-</section>
-</br>
-</br>
-
-{% endfor %}
-
-
-
+</body>
 </body>
 
 </html>

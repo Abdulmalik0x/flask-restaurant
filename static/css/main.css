@@ -1,13 +1,52 @@
+html {
+    height: 100%;
+  }
 body {
     font-family: sans-serif;
-    background-color: #333333
+    min-height: 100%;
+    margin: auto;
+}
+.heading-title {
+    text-align: center;
+    padding-bottom: 1%;
+}
+.header {
+    background:bisque;
+}
+
+.background {
+    background-image: url("../img/backgroundfood.jpg");
+    background-size: 100%;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    object-fit: cover;
+    opacity: 0.5;
+    z-index: 0;
+    position: relative;
+}
+.textholder {
+    background: blue;
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 500px;
 }
 
 h1,
 h2,
 h3,
 h4 {
-    color: #ffffff;
+    color:black;
+}
+
+.navbar {
+text-transform: uppercase;
+color:black;
+letter-spacing: .03em;
+}
+.navbar li {
+    display: inline-block;
+    padding: 0 24px 10px 0;
 }
 
 h1,
@@ -27,13 +66,7 @@ h2 {
 p,
 dd,
 dt {
-    color: #cccccc;
-}
-
-a {
-    text-decoration: none;
-    color: #ffffcc;
-    font-size: .75em;
+    color: black;
 }
 
 .pane {
@@ -55,10 +88,11 @@ a {
 .name {
     width: 50%;
     display: inline-block;
-    float: left;
 }
 
-.description {}
+.navbar {
+    display: inline-block;
+}
 
 .price {
     text-align: right;

@@ -6,24 +6,29 @@ from sqlalchemy.orm import sessionmaker
 from database_setup import Base, Restaurant, MenuItem, User
 from flask import render_template, url_for, request, redirect, flash, jsonify
 from flask import session as login_session
-import random, string
+import random
+import string
 
-# IMPORTS FOR THIS STEP
 from oauth2client.client import flow_from_clientsecrets
 from oauth2client.client import FlowExchangeError
 import httplib2
 import json
 from flask import make_response
 import requests
-import os 
+import os
+
+from elasticsearch import Elasticsearch
 
 app = Flask(__name__)
 
 # Connect to db and create db session
-engine = create_engine('sqlite:///restaurantmenuwithusers.db', connect_args={'check_same_thread':False}) # this becausw sqlite require new thread for each transaction with DB
+# this because sqlite require new thread for each transaction with DB
+engine = create_engine('sqlite:///restaurantmenuwithusers.db',
+                       connect_args={'check_same_thread': False})
+""" MetaData object contains all of the schema constructs we’ve associated with it """
 Base.metadata.bind = engine
 
-DBSession = sessionmaker(bind = engine)
+DBSession = sessionmaker(bind=engine)
 session = DBSession()
 
 
@@ -32,11 +37,13 @@ CLIENT_ID = json.loads(
     open('client_secrets.json', 'r').read())['web']['client_id']
 APPLICATION_NAME = "Restaurant Menu Application"
 
+
 @app.route('/login')
 def loginOauth():
-    state = ''.join(random.choice(string.ascii_uppercase + string.digits) for x in range(32))
+    state = ''.join(random.choice(string.ascii_uppercase + string.digits)
+                    for x in range(32))
     login_session['state'] = state
-    return render_template('login.html', STATE = state)
+    return render_template('login.html', STATE=state)
 
 
 @app.route('/fbconnect', methods=['POST'])
@@ -45,18 +52,20 @@ def fbconnect():
         response = make_response(json.dumps('Invalid state parameter.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
-    access_token = request.data.decode() # decode because value contant b'value' which affect the url
-    print ("access token received %s " % access_token)
+    # decode because value contant b'value' which affect the url
+    access_token = request.data.decode()
+    print("access token received %s " % access_token)
 
-
-    app_id = json.loads(open('fb_client_secrets.json', 'r').read())['web']['app_id']
-    app_secret = json.loads(open('fb_client_secrets.json', 'r').read())['web']['app_secret']
-    url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=%s&client_secret=%s&fb_exchange_token=%s' % (app_id, app_secret, access_token)
+    app_id = json.loads(open('fb_client_secrets.json', 'r').read())[
+        'web']['app_id']
+    app_secret = json.loads(open('fb_client_secrets.json', 'r').read())[
+        'web']['app_secret']
+    url = 'https://graph.facebook.com/oauth/access_token?grant_type=fb_exchange_token&client_id=%s&client_secret=%s&fb_exchange_token=%s' % (
+        app_id, app_secret, access_token)
     h = httplib2.Http()
    # print ("App secret value : %s Value of url :  %s "  % (app_secret, url,)) # problem is access token insetion be like b'value'
     result = h.request(url, 'GET')[1]
-    print (result) # to see the result of url 
-
+    print(result)  # to see the result of url
 
     # Use token to get user info from API
     userinfo_url = "https://graph.facebook.com/v2.8/me"
@@ -67,15 +76,16 @@ def fbconnect():
         and replace the remaining quotes with nothing so that it can be used directly in the graph
         api calls
     '''
-    token = result.decode('utf8').split(',')[0].split(':')[1].replace('"', '') # decode('utf8') added to decode str to bytes
+    token = result.decode('utf8').split(',')[0].split(':')[1].replace(
+        '"', '')  # decode('utf8') added to decode str to bytes
 
     url = 'https://graph.facebook.com/v2.8/me?access_token=%s&fields=name,id,email' % token
     h = httplib2.Http()
     result = h.request(url, 'GET')[1]
     # print "url sent for API access:%s"% url
-    print ("API JSON result: %s" % result)
+    print("API JSON result: %s" % result)
     data = json.loads(result)
-    print ("Api date : %s" %data)
+    print("Api date : %s" % data)
     login_session['provider'] = 'facebook'
     login_session['username'] = data["name"]
     login_session['facebook_id'] = data["id"]
@@ -91,21 +101,22 @@ def fbconnect():
     url = 'https://graph.facebook.com/v2.8/me/picture?access_token=%s&redirect=0&height=200&width=200' % token
     h = httplib2.Http()
     result = h.request(url, 'GET')[1]
-    print ("Returned result after consume access token : %s" % (result,))
+    print("Returned result after consume access token : %s" % (result,))
     data = json.loads(result)
-    print ("After converting to json : %s" % (data,))
+    print("After converting to json : %s" % (data,))
 
     login_session['picture'] = data["data"]["url"]
 
-    print ("Reach here")
+    print("Reach here")
     # see if user exists
     user_id = getUserId(login_session['email'])
     if not user_id:
-        user_id = createUser(login_session) # not tested yet, may be need serialize
-        print ("User created")
+        # not tested yet, may be need serialize
+        user_id = createUser(login_session)
+        print("User created")
 
-    login_session['user_id'] = user_id 
-    print ("login_session info after sign in : %s " % login_session)
+    login_session['user_id'] = user_id
+    print("login_session info after sign in : %s " % login_session)
 
     output = ''
     output += '<h1>Welcome, '
@@ -147,7 +158,7 @@ def gconnect():
            % access_token)
     h = httplib2.Http()
     result = json.loads(h.request(url, 'GET')[1])
-    
+
     # If there was an error in the access token info, abort.
     if result.get('error') is not None:
         response = make_response(json.dumps(result.get('error')), 500)
@@ -166,7 +177,7 @@ def gconnect():
     if result['issued_to'] != CLIENT_ID:
         response = make_response(
             json.dumps("Token's client ID does not match app's."), 401)
-        print ("Token's client ID does not match app's.")
+        print("Token's client ID does not match app's.")
         response.headers['Content-Type'] = 'application/json'
         return response
 
@@ -194,14 +205,19 @@ def gconnect():
     login_session['email'] = data['email']
 
     """ To check logged user have account in db, if not create one """
-    userEmail = session.query(User).filter_by(email = login_session['email']).one()
-    if userEmail is None:
+    email = login_session['email']
+    try:
+        print("email %s" % email)
+        print("Query : %s" % session.query(
+            User).filter_by(email=email).first())
+        if session.query(User).filter_by(email=login_session['email']).one() is None:
+            print("Not found")
+        print("User already have accoun in database")
+    except:
+        print("Error Happened")
         createUser(login_session)
-        print ("New user has been added")
-    else:
-        print ("User already have accoun in database")
+        print("New user has been added")
 
-            
     output = ''
     output += '<h1>Welcome, '
     output += login_session['username']
@@ -210,26 +226,27 @@ def gconnect():
     output += login_session['picture']
     output += ' " style = "width: 300px; height: 300px;border-radius: 150px;-webkit-border-radius: 150px;-moz-border-radius: 150px;"> '
     flash("you are now logged in as %s" % login_session['username'])
-    print ("done!")
+    print("done!")
     return output
-    
+
 
 @app.route('/gdisconnect')
 def gdisconnect():
     access_token = login_session.get('access_token')
     if access_token is None:
-        print ('Access Token is None')
-        response = make_response(json.dumps('Current user not connected.'), 401)
+        print('Access Token is None')
+        response = make_response(json.dumps(
+            'Current user not connected.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
-    print ('In gdisconnect access token is %s ' % access_token)
-    print ('User name is: ')
-    print (login_session['username'])
+    print('In gdisconnect access token is %s ' % access_token)
+    print('User name is: ')
+    print(login_session['username'])
     url = 'https://accounts.google.com/o/oauth2/revoke?token=%s' % login_session['access_token']
     h = httplib2.Http()
     result = h.request(url, 'GET')[0]
-    print ('result is : ')
-    print (result)
+    print('result is : ')
+    print(result)
     if result['status'] == '200':
         del login_session['access_token']
         del login_session['gplus_id']
@@ -240,15 +257,18 @@ def gdisconnect():
         response.headers['Content-Type'] = 'application/json'
         return response
     else:
-        response = make_response(json.dumps('Failed to revoke token for given user.'))
+        response = make_response(json.dumps(
+            'Failed to revoke token for given user.'))
         response.headers['Content-Type'] = 'application/json'
     return response
 
 
 def createUser(login_session):
   #  receivedEmail = login_session['email']
-   # userName = receivedEmail.partition('@')[0] 
-    newUser = User(name = login_session['usrname'], email = login_session['email'], picture = login_session['picture'])
+   # userName = receivedEmail.partition('@')[0]
+    print("Here is login name " + login_session['username'])
+    newUser = User(name=login_session['username'],
+                   email=login_session['email'], picture=login_session['picture'])
     session.add(newUser)
     session.commit()
     user = session.query(User).filter_by(email=login_session['email']).one()
@@ -256,13 +276,13 @@ def createUser(login_session):
 
 
 def getUserInfo(user_id):
-    user = session.query(User).filter_by(id = user_id).one()
+    user = session.query(User).filter_by(id=user_id).one()
     return user
 
 
 def getUserId(email):
     try:
-        user = session.query(User).filter_by(email = email).one()
+        user = session.query(User).filter_by(email=email).one()
         return user.serialize['id']
     except:
         return None
@@ -273,79 +293,114 @@ def getUserId(email):
 def showRestaurants():
     if 'username' not in login_session:
         return redirect('/login')
-    allRestaurants = session.query(Restaurant, User).all()
-    return render_template('restaurants.html', allRestaurants = allRestaurants )
+    allRestaurants = session.query(Restaurant).all()
+    print ("Reached here !")
+    return render_template('restaurants.html', allRestaurants=allRestaurants)
+
 
 @app.route('/restaurant/<int:restaurant_id>/')
 def showMenu(restaurant_id):
-    restaurant = session.query(Restaurant).filter_by(id = restaurant_id).first()
-    items = session.query(MenuItem).filter_by(restaurant_id = restaurant_id)
-    return render_template('restaurantmenu.html', restaurant=restaurant, items = items)
-    
+    restaurant = session.query(Restaurant).filter_by(id=restaurant_id).first()
+    items = session.query(MenuItem).filter_by(restaurant_id=restaurant_id)
+    return render_template('restaurantmenu.html', restaurant=restaurant, items=items)
 
-@app.route('/restaurant/<int:restaurant_id>/newmenu', methods=['GET','POST'])
+
+@app.route('/restaurant/addnewrestaurant/', methods=['GET', 'POST'])
+def addRestaurant():
+    if request.method == 'GET':
+        return render_template('addnewrestaurant.html')
+    else:
+        print(request.form['restaurantname'])
+        newRestaurant = Restaurant(
+            name=request.form['restaurantname'], user_id=login_session['user_id'])
+        session.add(newRestaurant)
+        session.commit()
+        return redirect(url_for('showRestaurants'))
+
+
+@app.route('/restaurant/<int:restaurant_id>/newmenu', methods=['GET', 'POST'])
 def newMenuItem(restaurant_id):
     print(login_session)
     if 'username' not in login_session:
         return redirect('/login')
     if request.method == 'POST':
-        newMenu = MenuItem(name = request.form['name'], restaurant_id = restaurant_id)
+        newMenu = MenuItem(
+            name=request.form['name'], restaurant_id=restaurant_id)
         session.add(newMenu)
         session.commit()
         flash("New menu item have added successfully!")
-        return redirect(url_for('Menu', restaurant_id = restaurant_id ))
+        return redirect(url_for('Menu', restaurant_id=restaurant_id))
     else:
-        return render_template('newmenuitem.html', restaurant_id = restaurant_id)
-         
+        return render_template('newmenuitem.html', restaurant_id=restaurant_id)
 
-@app.route('/restaurant/<int:restaurant_id>/<int:menu_id>/edit', methods=['GET','POST'])
+
+@app.route('/restaurant/<int:restaurant_id>/<int:menu_id>/edit', methods=['GET', 'POST'])
 def editMenuItem(restaurant_id, menu_id):
-    editedItem = session.query(MenuItem).filter_by(id=menu_id, restaurant_id = restaurant_id,).one()
-    if  request.method == 'POST':
+    editedItem = session.query(MenuItem).filter_by(
+        id=menu_id, restaurant_id=restaurant_id,).one()
+    if request.method == 'POST':
 
        # editedItem = MenuItem(name = request.form['newname'], restaurant_id = restaurant_id, id = menu_id)
         if request.form['newname']:
-           editedItem.name = request.form['newname']
+            editedItem.name = request.form['newname']
         session.add(editedItem)
       #  session.add(item)
         session.commit()
         flash("Menu item have edited successfully!")
-        
-        return redirect(url_for('showMenu', restaurant_id = restaurant_id))
+
+        return redirect(url_for('showMenu', restaurant_id=restaurant_id))
 
     else:
      #   item = session.query(MenuItem).filter_by(restaurant_id = restaurant_id, id = menu_id).one()
         editedItem = session.query(MenuItem).filter_by(id=menu_id).one()
-        return render_template('editmenuitem.html', restaurant_id = restaurant_id, menu_id = menu_id, item = editedItem) 
+        return render_template('editmenuitem.html', restaurant_id=restaurant_id, menu_id=menu_id, item=editedItem)
 
 # Task 3: Create a route for deleteMenuItem function here
 
-@app.route('/restaurant/<int:restaurant_id>/<int:menu_id>/delete', methods=['GET','POST'])
+
+@app.route('/restaurant/<int:restaurant_id>/<int:menu_id>/delete', methods=['GET', 'POST'])
 def deleteMenuItem(restaurant_id, menu_id):
-    deleteitem = session.query(MenuItem).filter_by(id=menu_id, restaurant_id = restaurant_id,).one()
+    deleteitem = session.query(MenuItem).filter_by(
+        id=menu_id, restaurant_id=restaurant_id,).one()
     if request.method == 'POST':
         session.delete(deleteitem)
         session.commit()
-        redirect(url_for('Menu', restaurant_id = restaurant_id ))
-    else: 
-        return render_template('deletemenuitem.html', restaurant_id = restaurant_id, menu_id = menu_id, item = deleteitem) 
+        redirect(url_for('Menu', restaurant_id=restaurant_id))
+    else:
+        return render_template('deletemenuitem.html', restaurant_id=restaurant_id, menu_id=menu_id, item=deleteitem)
 
-#Making API endpoint (GET Request)
+# Making API endpoint (GET Request)
+
+
 @app.route('/restaurant/<int:restaurant_id>/menu/json')
 def MenuItemJSON(restaurant_id):
   #  restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
     items = session.query(MenuItem).all()
-    return jsonify([i.MenuItemJSON for i in items]) 
+    return jsonify([i.MenuItemJSON for i in items])
 
 
-@app.route('/restaurants/json')
+@app.route('/restaurant/json')
 def RestaurantsJSON():
   #  restaurant = session.query(Restaurant).filter_by(id = restaurant_id).one()
     Restaurants = session.query(Restaurant).all()
     return jsonify(Resturants=[i.RestaurantsJSON for i in Restaurants])
 
 
+@app.route('/restaurant/search/', methods=['POST'])
+def SearchRestaurant():
+    if request.method == 'POST':
+        searchWord = request.form['wordToSearch']
+        restaurantToSearch = session.query(Restaurant).filter(Restaurant.name.ilike('%' + searchWord + '%')).all()
+        """ The below functions is to implement the search using raw sql query, but now working yet """
+      #  result11 = session.execute("SELECT * from Restaurant where name like '%' || :param || '%';", {'param': searchWord}) Fetch result but doesn't display
+        #result2 = session.execute("SELECT Restaurant.id from Restaurant where Restaurant.name=%s;", (searchWord,))
+        return render_template('restaurants.html', allRestaurants=restaurantToSearch)
+    else : 
+        return redirect('/Restaurant')
+
+
 if __name__ == '__main__':
-    app.secret_key = 'super_secret_key' # each session require secret key, to access the methods inside it like flash
-    app.debug = True # Auto reload for server if change occurs
-    app.run(host = '0.0.0.0', port = 5050)
+    # each session require secret key, to access the methods inside it like flash
+    app.secret_key = 'super_secret_key'
+    app.debug = True  # Auto reload for server if change occurs
+    app.run(host='0.0.0.0', port=5050)
