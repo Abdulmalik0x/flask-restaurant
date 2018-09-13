@@ -52,7 +52,7 @@ def fbconnect():
         response = make_response(json.dumps('Invalid state parameter.'), 401)
         response.headers['Content-Type'] = 'application/json'
         return response
-    # decode because value contant b'value' which affect the url
+    # decode because content be like (b'value') which affect the url
     access_token = request.data.decode()
     print("access token received %s " % access_token)
 
